@@ -182,6 +182,24 @@ func (dr defaultReader) ReadPacketConn(conn net.PacketConn, timeout time.Duratio
 // Implementations should never return a nil Reader.
 // Readers should also implement the optional PacketConnReader interface.
 // PacketConnReader is required to use a generic net.PacketConn.
+
+// sykdebug: 一个典型的用法示例：
+// // 装饰器1：添加日志
+// func LogDecorator(r Reader) Reader {
+//     return &LogReader{Reader: r}
+// }
+
+// type LogReader struct {
+//     Reader
+// }
+
+//	func (l *LogReader) Read(p []byte) (n int, err error) {
+//	    start := time.Now()
+//	    n, err = l.Reader.Read(p)
+//	    duration := time.Since(start)
+//	    log.Printf("Read %d bytes in %s", n, duration)
+//	    return
+//	}
 type DecorateReader func(Reader) Reader
 
 // DecorateWriter is a decorator hook for extending or supplanting the functionality of a Writer.
@@ -225,6 +243,7 @@ type Server struct {
 	TsigSecret map[string]string
 	// If NotifyStartedFunc is set it is called once the server has started listening.
 	NotifyStartedFunc func()
+	// sykdebug: 装饰器模式，用于自定义扩展reader功能
 	// DecorateReader is optional, allows customization of the process that reads raw DNS messages.
 	// The decorated reader must not mutate the data read from the conn.
 	DecorateReader DecorateReader
@@ -298,6 +317,7 @@ func (srv *Server) init() {
 	srv.udpPool.New = makeUDPBuffer(srv.UDPSize)
 }
 
+// sykdebug: once保障对应功能仅能被执行一次
 func unlockOnce(l sync.Locker) func() {
 	var once sync.Once
 	return func() { once.Do(l.Unlock) }
@@ -375,6 +395,7 @@ func (srv *Server) ActivateAndServe() error {
 
 	srv.init()
 
+	// sykquestion: 限制了为udpserver? 但成员变量中有tcp字段；下文有listener的判断，意味着只有一个生效？
 	if srv.PacketConn != nil {
 		// Check PacketConn interface's type is valid and value
 		// is not nil
@@ -731,6 +752,9 @@ func (srv *Server) readPacketConn(conn net.PacketConn, timeout time.Duration) ([
 	}
 	srv.lock.RUnlock()
 
+	// sykdebug: udpPool 是sync.Pool对象，[]byte缓冲区，用于存储udp接收的内容；为了避免频繁的生成和销毁，因此用了pool进行管理；
+	// sykdebug: 它使用了私有池无锁取、共有池加锁取、跨p steal原子操作取，保障了线程安全；用户需要自己保障状态的重置
+	// sykdebug: 这里将读取到的内容存入缓存区中，再根据n捞出；缓存区可被重复复用
 	m := srv.udpPool.Get().([]byte)
 	n, addr, err := conn.ReadFrom(m)
 	if err != nil {

@@ -24,6 +24,7 @@ const (
 	HmacMD5 = "hmac-md5.sig-alg.reg.int." // Deprecated: HmacMD5 is no longer supported.
 )
 
+// sykdebug: TSIG（Transaction Signature，交易签名）是RFC 2845中定义的计算机网络协议，主要用于域名系统（DNS）中验证对DNS数据库的更新操作，确保DNS更新的真实性、完整性和安全性。
 // TsigProvider provides the API to plug-in a custom TSIG implementation.
 type TsigProvider interface {
 	// Generate is passed the DNS message to be signed and the partial TSIG RR. It returns the signature and nil, otherwise an error.

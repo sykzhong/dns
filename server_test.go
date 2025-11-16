@@ -71,7 +71,8 @@ func AnotherHelloServer(w ResponseWriter, req *Msg) {
 func RunLocalServer(pc net.PacketConn, l net.Listener, opts ...func(*Server)) (*Server, string, chan error, error) {
 	server := &Server{
 		PacketConn: pc,
-		Listener:   l,
+		// sykquestion: 这里为啥可以为nil？
+		Listener: l,
 
 		ReadTimeout:  time.Hour,
 		WriteTimeout: time.Hour,
@@ -93,6 +94,7 @@ func RunLocalServer(pc net.PacketConn, l net.Listener, opts ...func(*Server)) (*
 		addr = l.Addr().String()
 		closer = l
 	} else {
+		// sykdebug: 获取实际绑定的地址
 		addr = pc.LocalAddr().String()
 		closer = pc
 	}
@@ -103,6 +105,7 @@ func RunLocalServer(pc net.PacketConn, l net.Listener, opts ...func(*Server)) (*
 	fin := make(chan error, 1)
 
 	go func() {
+		// sykdebug: 这里做了接收操作，结合fin通道容量为1的事实，实际是保障了信号可以被无阻塞地发送出去；下文实现了conn的退出
 		fin <- server.ActivateAndServe()
 		closer.Close()
 	}()
@@ -112,6 +115,7 @@ func RunLocalServer(pc net.PacketConn, l net.Listener, opts ...func(*Server)) (*
 }
 
 func RunLocalUDPServer(laddr string, opts ...func(*Server)) (*Server, string, chan error, error) {
+	// sykdebug: laddr :0 表示绑定v4/v6任意网络接口中的任意端口，返回的pc需要配额写成做异步读取
 	pc, err := net.ListenPacket("udp", laddr)
 	if err != nil {
 		return nil, "", nil, err
