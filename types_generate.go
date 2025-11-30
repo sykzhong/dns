@@ -97,31 +97,40 @@ func loadModule(name string) (*types.Package, error) {
 }
 
 func main() {
+	fmt.Printf("begin to run types_generate\n")
 	// Import and type-check the package
 	pkg, err := loadModule("github.com/miekg/dns")
 	fatalIfErr(err)
 	scope := pkg.Scope()
+	fmt.Printf("get scope\n")
 
 	// Collect constants like TypeX
 	var numberedTypes []string
 	for _, name := range scope.Names() {
 		o := scope.Lookup(name)
 		if o == nil || !o.Exported() {
+			fmt.Printf("scope name: %s, not exported\n", name)
 			continue
 		}
 		b, ok := o.Type().(*types.Basic)
+		// sykdebug: 如果不是普通类型，跳过；如果是普通类型，仅保留uint16类型的字段
 		if !ok || b.Kind() != types.Uint16 {
+			fmt.Printf("scope name: %s, basis=%t, or not uint16\n", name, ok)
 			continue
 		}
+		// sykdebug: 仅保留Type前缀的
 		if !strings.HasPrefix(o.Name(), "Type") {
+			fmt.Printf("scope name: %s, not prefix Type\n", name)
 			continue
 		}
 		name := strings.TrimPrefix(o.Name(), "Type")
 		if name == "PrivateRR" {
+			fmt.Printf("scope name: %s, PrivateRR\n", name)
 			continue
 		}
 		numberedTypes = append(numberedTypes, name)
 	}
+	fmt.Printf("numberedTypes=%v\n", numberedTypes)
 
 	// Collect actual types (*X)
 	var namedTypes []string
@@ -133,6 +142,7 @@ func main() {
 		if st, _ := getTypeStruct(o.Type(), scope); st == nil {
 			continue
 		}
+		fmt.Printf("scope name:%s, get struct\n", name)
 		if name == "PrivateRR" {
 			continue
 		}
@@ -144,6 +154,8 @@ func main() {
 
 		namedTypes = append(namedTypes, o.Name())
 	}
+	// sykdebug: 实际有struct的内容比定义了types的要少
+	fmt.Printf("namedTypes: %v\n", namedTypes)
 
 	b := &bytes.Buffer{}
 	b.WriteString(packageHdr)

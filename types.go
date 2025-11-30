@@ -195,6 +195,7 @@ var StatefulTypeToString = map[uint16]string{
 }
 
 // Header is the wire format for the DNS packet header.
+// sykquestion dns头信息待学习
 type Header struct {
 	Id                                 uint16
 	Bits                               uint16
@@ -264,8 +265,9 @@ const ipv4InIPv6Prefix = "::ffff:"
 // questions as an error, it is recommended to only have one question per
 // message.
 type Question struct {
-	Name   string `dns:"cdomain-name"` // "cdomain-name" specifies encoding (and may be compressed)
-	Qtype  uint16
+	Name  string `dns:"cdomain-name"` // "cdomain-name" specifies encoding (and may be compressed)
+	Qtype uint16
+	// sykdebug: 表示查询的资源记录类别，常见的Internet，表示互联网资源
 	Qclass uint16
 }
 

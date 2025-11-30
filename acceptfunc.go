@@ -30,7 +30,9 @@ const (
 	MsgRejectNotImplemented                        // Reject the message with a RcodeNotImplemented
 )
 
+// sykdebug: 非查询报文的都被废弃了
 func defaultMsgAcceptFunc(dh Header) MsgAcceptAction {
+	// sykdebug: qr为1，表示响应报文；qr为0，表示查询报文
 	if isResponse := dh.Bits&_QR != 0; isResponse {
 		return MsgIgnore
 	}
@@ -41,6 +43,7 @@ func defaultMsgAcceptFunc(dh Header) MsgAcceptAction {
 		return MsgRejectNotImplemented
 	}
 
+	// sykdebug: 查询问题数量
 	if dh.Qdcount != 1 {
 		return MsgReject
 	}

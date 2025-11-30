@@ -229,6 +229,7 @@ func TsigVerifyWithProvider(msg []byte, provider TsigProvider, requestMAC string
 }
 
 // actual implementation of TsigVerify, taking the current time ('now') as a parameter for the convenience of tests.
+// sykquestion: tsig 验证流程，待学习
 func tsigVerify(msg []byte, provider TsigProvider, requestMAC string, timersOnly bool, now uint64) error {
 	// Strip the TSIG from the incoming msg
 	stripped, tsig, err := stripTsig(msg)

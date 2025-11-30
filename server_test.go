@@ -116,6 +116,7 @@ func RunLocalServer(pc net.PacketConn, l net.Listener, opts ...func(*Server)) (*
 
 func RunLocalUDPServer(laddr string, opts ...func(*Server)) (*Server, string, chan error, error) {
 	// sykdebug: laddr :0 表示绑定v4/v6任意网络接口中的任意端口，返回的pc需要配额写成做异步读取
+	// sykquestion: 这里的pc可以类型转换为UDPConn么
 	pc, err := net.ListenPacket("udp", laddr)
 	if err != nil {
 		return nil, "", nil, err
@@ -179,6 +180,7 @@ func RunLocalUnixSeqPacketServer(laddr string) (chan interface{}, string, error)
 	return shutdownChan, pc.Addr().String(), nil
 }
 
+// sykdebug: 非常好的学习示例
 func TestServing(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -201,6 +203,7 @@ func TestServing(t *testing.T) {
 			}
 			defer s.Shutdown()
 
+			// sykdebug: 待学习client端操作
 			c := &Client{
 				Net: tc.network,
 			}

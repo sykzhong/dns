@@ -329,6 +329,7 @@ func Fqdn(s string) string {
 // CanonicalName returns the domain name in canonical form. A name in canonical
 // form is lowercase and fully qualified. Only US-ASCII letters are affected. See
 // Section 6.2 in RFC 4034.
+// sykdebug: 将域名转为了小写
 func CanonicalName(s string) string {
 	return strings.Map(func(r rune) rune {
 		if r >= 'A' && r <= 'Z' {

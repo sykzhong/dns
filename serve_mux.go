@@ -15,6 +15,7 @@ import (
 // ServeMux is also safe for concurrent access from multiple goroutines.
 //
 // The zero ServeMux is empty and ready for use.
+// sykdebug: 多路复用，不同域名对应不同的handler逻辑
 type ServeMux struct {
 	z map[string]Handler
 	m sync.RWMutex
@@ -65,6 +66,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	if mux.z == nil {
 		mux.z = make(map[string]Handler)
 	}
+	// sykdebug: 小写域名 后缀.，作为key；value为handler
 	mux.z[CanonicalName(pattern)] = handler
 	mux.m.Unlock()
 }

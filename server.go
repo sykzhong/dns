@@ -33,6 +33,7 @@ type Handler interface {
 type HandlerFunc func(ResponseWriter, *Msg)
 
 // ServeDNS calls f(w, r).
+// sykdebug: 这里将外部的其他函数直接分装为ServeDNS方法，这样就可以直接通过ServeMux分发到具体的HandlerFunc上。
 func (f HandlerFunc) ServeDNS(w ResponseWriter, r *Msg) {
 	f(w, r)
 }
@@ -74,9 +75,10 @@ type response struct {
 	tsigProvider   TsigProvider
 	udp            net.PacketConn // i/o connection if UDP was used
 	tcp            net.Conn       // i/o connection if TCP was used
-	udpSession     *SessionUDP    // oob data to get egress interface right
-	pcSession      net.Addr       // address to use when writing to a generic net.PacketConn
-	writer         Writer         // writer to output the raw DNS bits
+	// sykquestion: 关于oob，设计控制面数据面分离；有待学习计网相关内容
+	udpSession *SessionUDP // oob data to get egress interface right
+	pcSession  net.Addr    // address to use when writing to a generic net.PacketConn
+	writer     Writer      // writer to output the raw DNS bits
 }
 
 // handleRefused returns a HandlerFunc that returns REFUSED for every request it gets.
@@ -314,6 +316,7 @@ func (srv *Server) init() {
 		srv.Handler = DefaultServeMux
 	}
 
+	// sykdebug: pool函数的new操作定义
 	srv.udpPool.New = makeUDPBuffer(srv.UDPSize)
 }
 
@@ -393,9 +396,11 @@ func (srv *Server) ActivateAndServe() error {
 		return &Error{err: "server already started"}
 	}
 
+	// sykquestion: 这里进行了初始话，内有若干内容，待学习
 	srv.init()
 
 	// sykquestion: 限制了为udpserver? 但成员变量中有tcp字段；下文有listener的判断，意味着只有一个生效？
+	// sykdebug: 这里的逻辑是，如果设置了PacketConn，则认为是UDP服务；否则认为是TCP服务
 	if srv.PacketConn != nil {
 		// Check PacketConn interface's type is valid and value
 		// is not nil
@@ -518,11 +523,13 @@ func (srv *Server) serveTCP(l net.Listener) error {
 func (srv *Server) serveUDP(l net.PacketConn) error {
 	defer l.Close()
 
+	// sykdebug: 使用了reader将一个对象转换为接口
 	reader := Reader(defaultReader{srv})
 	if srv.DecorateReader != nil {
 		reader = srv.DecorateReader(reader)
 	}
 
+	// sykdebug 要求为udp且reader类型支持从packetConn中获取数据；packetConn表示支持任何无协议链接，udp是其中的一种实现
 	lUDP, isUDP := l.(*net.UDPConn)
 	readerPC, canPacketConn := reader.(PacketConnReader)
 	if !isUDP && !canPacketConn {
@@ -535,6 +542,7 @@ func (srv *Server) serveUDP(l net.PacketConn) error {
 
 	var wg sync.WaitGroup
 	defer func() {
+		// sykquestion: 关闭操作待学习
 		wg.Wait()
 		close(srv.shutdown)
 	}()
@@ -549,6 +557,7 @@ func (srv *Server) serveUDP(l net.PacketConn) error {
 			err  error
 		)
 		if isUDP {
+			// sykquestion: 这里是阻塞的？
 			m, sUDP, err = reader.ReadUDP(lUDP, rtimeout)
 		} else {
 			m, sPC, err = readerPC.ReadPacketConn(l, rtimeout)
@@ -562,6 +571,8 @@ func (srv *Server) serveUDP(l net.PacketConn) error {
 			}
 			return err
 		}
+		// sykquestion: 这是因为获取的内容过少？且对应的缓存区仍然可以用于接收udp内容的话，才重置
+		// sykdebug: DNS协议规定最小消息大小为12子节，小于该长度说明msg非法，立即归还缓冲池
 		if len(m) < headerSize {
 			if cap(m) == srv.UDPSize {
 				srv.udpPool.Put(m[:srv.UDPSize])
@@ -633,6 +644,7 @@ func (srv *Server) serveTCPConn(wg *sync.WaitGroup, rw net.Conn) {
 
 // Serve a new UDP request.
 func (srv *Server) serveUDPPacket(wg *sync.WaitGroup, m []byte, u net.PacketConn, udpSession *SessionUDP, pcSession net.Addr) {
+	// sykdebug: tsig 提供了DNS消息认证机制
 	w := &response{tsigProvider: srv.tsigProvider(), udp: u, udpSession: udpSession, pcSession: pcSession}
 	if srv.DecorateWriter != nil {
 		w.writer = srv.DecorateWriter(w)
@@ -709,6 +721,7 @@ func (srv *Server) readTCP(conn net.Conn, timeout time.Duration) ([]byte, error)
 	// ShutdownContext.
 	srv.lock.RLock()
 	if srv.started {
+		// sykdebug: ShutdonwContext的机制会将deadline设定为过去的时间；如果这里不加锁判断started则可能导致shutdown失败+读阻塞
 		conn.SetReadDeadline(time.Now().Add(timeout))
 	}
 	srv.lock.RUnlock()
@@ -758,6 +771,7 @@ func (srv *Server) readPacketConn(conn net.PacketConn, timeout time.Duration) ([
 	m := srv.udpPool.Get().([]byte)
 	n, addr, err := conn.ReadFrom(m)
 	if err != nil {
+		// sykdebug: 这里结束了内存的使用，因此直接重置
 		srv.udpPool.Put(m)
 		return nil, nil, err
 	}

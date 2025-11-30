@@ -190,6 +190,7 @@ func unpackUint16(msg []byte, off int) (i uint16, off1 int, err error) {
 	if off+2 > len(msg) {
 		return 0, len(msg), &Error{err: "overflow unpacking uint16"}
 	}
+	// sykdebug: 大端序存储方式，常见于网络协议传输；将相关2子节抽取转换为uint16类型的整数
 	return binary.BigEndian.Uint16(msg[off:]), off + 2, nil
 }
 

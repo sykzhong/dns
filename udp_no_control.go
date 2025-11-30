@@ -25,6 +25,7 @@ func ReadFromSessionUDP(conn *net.UDPConn, b []byte) (int, *SessionUDP, error) {
 	if err != nil {
 		return n, nil, err
 	}
+	// sykdebug: sessionUDP is a struct that holds the remote address，对udp模拟了会话机制
 	return n, &SessionUDP{raddr.(*net.UDPAddr)}, err
 }
 

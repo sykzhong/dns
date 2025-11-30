@@ -389,6 +389,7 @@ Loop:
 		}
 		c := int(msg[off])
 		off++
+		// sykdebug: 压缩指针，0xC000 是指针标记，后面带的是长度标签
 		switch c & 0xC0 {
 		case 0x00:
 			if c == 0x00 {
@@ -839,6 +840,7 @@ func (dns *Msg) unpack(dh Header, msg []byte, off int) (err error) {
 	for i := 0; i < int(dh.Qdcount); i++ {
 		off1 := off
 		var q Question
+		// sykdebug: 将msg[off1:off] 传递给unpackQuestion函数，该函数的返回值是解析后的Q对象和新的偏移量；Q对象包含对应的查询信息，例如查询的域名、类型和类。
 		q, off, err = unpackQuestion(msg, off)
 		if err != nil {
 			return err
@@ -1211,6 +1213,7 @@ func unpackMsgHdr(msg []byte, off int) (Header, int, error) {
 func (dns *Msg) setHdr(dh Header) {
 	dns.Id = dh.Id
 	dns.Response = dh.Bits&_QR != 0
+	// sykdebug: 右移11位，则12~15处在前四位，& 0xF表示取前四位的意思，刚刚好
 	dns.Opcode = int(dh.Bits>>11) & 0xF
 	dns.Authoritative = dh.Bits&_AA != 0
 	dns.Truncated = dh.Bits&_TC != 0
